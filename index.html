@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Routine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Caveat&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #E0F7FA;
+            background-image:
+                url("https://www.transparenttextures.com/patterns/crissxcross.png"),
+                url('https://img.icons8.com/ios/50/000000/pencil--v1.png'),
+                url('https://img.icons8.com/ios/50/000000/erlenmeyer-flask.png'),
+                url('https://img.icons8.com/ios/50/000000/dna-helix.png'),
+                url('https://img.icons8.com/ios/50/000000/pen.png');
+            background-repeat: repeat, no-repeat, no-repeat, no-repeat, no-repeat;
+            background-position: 0 0, 5% 10%, 95% 20%, 10% 80%, 90% 90%;
+            background-size: auto, 30px, 40px, 40px, 30px;
+            background-attachment: fixed;
+        }
+
+        .hidden { display: none !important; }
+
+        /* Fullscreen Overlays */
+        .fullscreen-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 188, 212, 0.95);
+            backdrop-filter: blur(10px);
+            z-index: 10000;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            transition: opacity 0.5s ease-in-out;
+        }
+
+        /* Welcome Screen */
+        .welcome-screen {
+            background-color: #00BCD4;
+            font-family: 'Caveat', cursive;
+        }
+        .welcome-message { font-size: 5rem; color: white; animation: fadeIn 2s; }
+        .greeting-message { font-size: 2.5rem; color: white; animation: fadeIn 2.5s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* General Styling */
+        .nav-link.active { color: #FFFFFF; background-color: #00ACC1; border-radius: 9999px; }
+        input[type="checkbox"] {
+            appearance: none; background-color: #fff; margin: 0; font: inherit; color: currentColor;
+            width: 1.15em; height: 1.15em; border: 0.15em solid #00ACC1; border-radius: 0.15em;
+            transform: translateY(-0.075em); display: grid; place-content: center; cursor: pointer;
+        }
+        input[type="checkbox"]::before {
+            content: ""; width: 0.65em; height: 0.65em; transform: scale(0);
+            transition: 120ms transform ease-in-out; box-shadow: inset 1em 1em #00ACC1;
+            transform-origin: bottom left; clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+        }
+        input[type="checkbox"]:checked::before { transform: scale(1); }
+
+        /* Calendar Fix */
+        .calendar-header-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+        .calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+        .calendar-day { text-align: center; padding: 10px; border: 1px solid #B2EBF2; cursor: pointer; transition: background-color 0.3s; }
+        .calendar-day:hover { background-color: #B2EBF2; }
+        .calendar-day.today { background-color: #00ACC1; color: white; font-weight: bold; border-color: #00796B; }
+        .calendar-day.has-routine { font-weight: bold; background-color: #80DEEA; box-shadow: inset 0 0 5px rgba(0,0,0,0.1); }
+        .calendar-header { text-align: center; font-weight: bold; padding: 10px; }
+        
+        /* Modal Scroll Fix */
+        #subjects-container { max-height: 40vh; overflow-y: auto; padding-right: 1rem; }
+    </style>
+</head>
+<body class="bg-cyan-50">
+
+    <!-- Password Overlay -->
+    <div id="password-overlay" class="fullscreen-overlay">
+        <div class="bg-white p-8 rounded-lg shadow-2xl text-center w-11/12 max-w-sm">
+            <h2 class="text-2xl font-bold mb-4 text-cyan-800">Enter Password</h2>
+            <p class="text-gray-600 mb-6">This site is private. Please enter the password to continue.</p>
+            <form id="password-form">
+                <input type="password" id="password-input" class="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="Password" autofocus>
+                <p id="password-error" class="text-red-500 text-sm mb-4 hidden">Incorrect password.</p>
+                <button type="submit" class="w-full bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Enter</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main App Content (Initially Hidden) -->
+    <div id="app-container" class="hidden">
+         <!-- Welcome Animation -->
+        <div id="welcome-screen" class="fullscreen-overlay welcome-screen">
+            <div class="welcome-message">Welcome Madam Jii</div>
+            <div id="greeting" class="greeting-message"></div>
+        </div>
+
+        <div id="main-content" class="container mx-auto p-4 md:p-8 opacity-0 transition-opacity duration-1000">
+            <nav class="bg-white/80 backdrop-blur-md shadow-lg rounded-full p-2 mb-8 flex justify-center items-center sticky top-4 z-50">
+                <a href="#" id="nav-today" class="nav-link active px-6 py-2 text-lg font-semibold text-gray-700">Today</a>
+                <a href="#" id="nav-calendar" class="nav-link px-6 py-2 text-lg font-semibold text-gray-700">Calendar</a>
+            </nav>
+
+            <section id="today-section">
+                <div class="text-center mb-8"><h1 class="text-4xl font-bold text-cyan-700" id="today-date"></h1></div>
+                <div id="routine-display"></div>
+                <div id="no-routine-message" class="text-center p-8 bg-white/80 backdrop-blur-md shadow-lg rounded-lg hidden">
+                    <p class="text-xl text-gray-600 mb-4">Routine not yet decided.</p>
+                    <button id="setup-routine-btn" class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-6 rounded-full transition duration-300">Set up routine</button>
+                </div>
+                <div id="status-bar" class="mt-8 p-4 bg-white/80 backdrop-blur-md shadow-lg rounded-lg text-center hidden">
+                    <span id="completed-tasks" class="font-semibold text-lg">Completed tasks: 0</span><span class="mx-4 text-gray-400">|</span><span id="remaining-tasks" class="font-semibold text-lg">Remaining tasks: 0</span>
+                </div>
+            </section>
+
+            <section id="calendar-section" class="hidden">
+                 <div class="bg-white/80 backdrop-blur-md shadow-lg rounded-lg p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <button id="prev-month" class="px-4 py-2 bg-cyan-500 text-white rounded-lg">&lt;</button>
+                        <h2 id="month-year" class="text-2xl font-bold"></h2>
+                        <button id="next-month" class="px-4 py-2 bg-cyan-500 text-white rounded-lg">&gt;</button>
+                    </div>
+                    <div class="calendar-header-grid">
+                        <div class="calendar-header">Sun</div><div class="calendar-header">Mon</div><div class="calendar-header">Tue</div><div class="calendar-header">Wed</div><div class="calendar-header">Thu</div><div class="calendar-header">Fri</div><div class="calendar-header">Sat</div>
+                    </div>
+                    <div id="calendar-grid" class="calendar"></div>
+                </div>
+            </section>
+
+            <div id="routine-modal" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center hidden z-[60]">
+                <div class="bg-white rounded-lg p-8 w-11/12 md:w-1/2 lg:w-1/3 flex flex-col">
+                    <h2 class="text-2xl font-bold mb-4" id="form-date"></h2>
+                    <form id="routine-form" class="flex flex-col flex-grow">
+                        <div id="subjects-container" class="flex-grow"></div>
+                        <button type="button" id="add-subject-btn" class="w-full mt-4 mb-6 py-2 px-4 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg">Add Subject</button>
+                        <div class="flex justify-end gap-4 mt-auto">
+                             <button type="button" id="delete-routine-btn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg hidden">Delete Routine</button>
+                            <button type="button" id="cancel-form-btn" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg">Cancel</button>
+                            <button type="submit" id="save-form-btn" class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg">Save Routine</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DOM Elements ---
+            const passwordOverlay = document.getElementById('password-overlay');
+            const passwordForm = document.getElementById('password-form');
+            const passwordInput = document.getElementById('password-input');
+            const passwordError = document.getElementById('password-error');
+            const appContainer = document.getElementById('app-container');
+            
+            // --- App State ---
+            const VALID_PASSWORDS = ["21105", "3103"];
+            let allRoutines = {};
+            let currentSelectedDate = null;
+            let calendarDate = new Date();
+
+            // --- Password Check ---
+            passwordForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                if (VALID_PASSWORDS.includes(passwordInput.value)) {
+                    passwordOverlay.classList.add('hidden');
+                    appContainer.classList.remove('hidden');
+                    startApp();
+                } else {
+                    passwordError.classList.remove('hidden');
+                    passwordInput.value = '';
+                }
+            });
+
+            // --- Helper function to get date string without timezone issues ---
+            function getDateString(date) {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            }
+
+            // --- Local Storage Functions ---
+            function loadRoutinesFromStorage() {
+                const routinesJSON = localStorage.getItem('dailyRoutines');
+                allRoutines = routinesJSON ? JSON.parse(routinesJSON) : {};
+            }
+
+            function saveRoutinesToStorage() {
+                localStorage.setItem('dailyRoutines', JSON.stringify(allRoutines));
+            }
+
+            // --- App Initialization ---
+            function startApp() {
+                loadRoutinesFromStorage();
+                seedInitialDataIfNeeded();
+
+                const welcomeScreen = document.getElementById('welcome-screen');
+                const greetingEl = document.getElementById('greeting');
+                const mainContent = document.getElementById('main-content');
+                
+                const now = new Date();
+                const hour = now.getHours();
+                const minutes = now.getMinutes();
+
+                if (hour >= 3 && hour < 12) {
+                    greetingEl.textContent = 'Good Morning';
+                } else if (hour === 12 && minutes === 0) {
+                    greetingEl.textContent = 'Good Noon';
+                } else if (hour >= 12 && (hour < 16 || (hour === 16 && minutes <= 30))) {
+                    greetingEl.textContent = 'Good Afternoon';
+                } else {
+                    greetingEl.textContent = 'Good Evening';
+                }
+                
+                setTimeout(() => {
+                    welcomeScreen.style.opacity = '0';
+                    mainContent.style.opacity = '1';
+                    setTimeout(() => { welcomeScreen.classList.add('hidden'); }, 1000);
+                }, 3000);
+                
+                renderTodaysRoutine();
+                showSection('today');
+            }
+
+            function seedInitialDataIfNeeded() {
+                const defaultRoutines = {
+                    '10-17': {
+                        subjects: [
+                            { name: 'Biology', topics: [{text: 'Body Fluids and Circulation (Notes remaining)', completed: false}] },
+                            { name: 'Chemistry', topics: [{text: 'Chemical Equilibrium (remaining)', completed: false}] },
+                            { name: 'Physics', topics: [
+                                {text: 'Total Internal Reflection (Questions)', completed: false}, 
+                                {text: 'Refraction of Light at Plane Surface (Questions)', completed: false}, 
+                                {text: 'Refraction at Curved Surface (Questions)', completed: false}
+                            ]}
+                        ]
+                    },
+                    '10-20': {
+                        subjects: [
+                            { name: 'Biology', topics: [{text: 'Breathing (Notes)', completed: false}] },
+                            { name: 'Chemistry', topics: [{text: 'Ionic (Revision)', completed: false}] },
+                            { name: 'Physics', topics: [
+                                {text: 'Atoms (Notes)', completed: false}, 
+                                {text: 'Atoms (Questions)', completed: false}
+                            ]}
+                        ]
+                    }
+                };
+
+                const today = new Date();
+                const month = String(today.getMonth() + 1).padStart(2, '0');
+                const day = String(today.getDate()).padStart(2, '0');
+                const monthDayKey = `${month}-${day}`;
+
+                if (defaultRoutines[monthDayKey]) {
+                    const dateString = getDateString(today);
+                    if (!allRoutines[dateString]) {
+                        allRoutines[dateString] = defaultRoutines[monthDayKey];
+                        saveRoutinesToStorage();
+                    }
+                }
+            }
+            
+            // --- UI Logic ---
+            const navToday = document.getElementById('nav-today');
+            const navCalendar = document.getElementById('nav-calendar');
+            navToday.addEventListener('click', e => { e.preventDefault(); showSection('today'); });
+            navCalendar.addEventListener('click', e => { e.preventDefault(); showSection('calendar'); });
+            
+            function showSection(section) {
+                document.getElementById('today-section').classList.toggle('hidden', section !== 'today');
+                document.getElementById('calendar-section').classList.toggle('hidden', section === 'today');
+                navToday.classList.toggle('active', section === 'today');
+                navCalendar.classList.toggle('active', section !== 'today');
+                if(section === 'calendar') renderCalendar();
+            }
+
+            const todayDateEl = document.getElementById('today-date');
+            const routineDisplay = document.getElementById('routine-display');
+            const noRoutineMessage = document.getElementById('no-routine-message');
+            const statusBar = document.getElementById('status-bar');
+            
+            const todayString = getDateString(new Date());
+            todayDateEl.textContent = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            
+            function renderTodaysRoutine() {
+                const routine = allRoutines[todayString];
+                if (routine && routine.subjects && routine.subjects.length > 0) {
+                    noRoutineMessage.classList.add('hidden');
+                    routineDisplay.innerHTML = routine.subjects.map((subject, subjectIndex) => `
+                        <div class="mb-8 bg-white/80 backdrop-blur-md shadow-lg rounded-lg overflow-hidden">
+                            <h2 class="text-2xl font-bold p-4 bg-cyan-100 text-cyan-800">${subject.name}</h2>
+                            <table class="w-full">
+                                <thead class="bg-cyan-50"><tr><th class="p-3 text-left">Topic</th><th class="p-3 w-24 text-center">Completed</th></tr></thead>
+                                <tbody>${subject.topics.map((topic, topicIndex) => `
+                                    <tr class="border-t border-cyan-200">
+                                        <td class="p-3">${topic.text}</td>
+                                        <td class="p-3 text-center">
+                                            <input type="checkbox" class="task-checkbox" 
+                                                   data-subject-index="${subjectIndex}" 
+                                                   data-topic-index="${topicIndex}" 
+                                                   ${topic.completed ? 'checked' : ''}>
+                                        </td>
+                                    </tr>`).join('')}</tbody>
+                            </table>
+                        </div>`).join('');
+                    
+                    document.querySelectorAll('.task-checkbox').forEach(cb => cb.addEventListener('change', handleCheckboxChange));
+                    updateStatus();
+                } else {
+                    noRoutineMessage.classList.remove('hidden');
+                    routineDisplay.innerHTML = '';
+                    statusBar.classList.add('hidden');
+                }
+            }
+
+            function handleCheckboxChange(event) {
+                const subjectIndex = event.target.dataset.subjectIndex;
+                const topicIndex = event.target.dataset.topicIndex;
+                const isChecked = event.target.checked;
+
+                const routine = allRoutines[todayString];
+                if (routine && routine.subjects[subjectIndex] && routine.subjects[subjectIndex].topics[topicIndex]) {
+                    routine.subjects[subjectIndex].topics[topicIndex].completed = isChecked;
+                    saveRoutinesToStorage();
+                    updateStatus();
+                }
+            }
+
+            function updateStatus() {
+                const routine = allRoutines[todayString];
+                if (!routine || !routine.subjects) {
+                     statusBar.classList.add('hidden');
+                     return;
+                }
+                
+                let totalTasks = 0;
+                let completedTasks = 0;
+                routine.subjects.forEach(subject => {
+                    totalTasks += subject.topics.length;
+                    subject.topics.forEach(topic => {
+                        if (topic.completed) {
+                            completedTasks++;
+                        }
+                    });
+                });
+
+                statusBar.classList.toggle('hidden', totalTasks === 0);
+                document.getElementById('completed-tasks').textContent = `Completed tasks: ${completedTasks}`;
+                document.getElementById('remaining-tasks').textContent = `Remaining tasks: ${totalTasks - completedTasks}`;
+            }
+            
+            document.getElementById('setup-routine-btn').addEventListener('click', () => { showSection('calendar'); openRoutineForm(new Date()); });
+
+            const calendarGrid = document.getElementById('calendar-grid');
+            const monthYearEl = document.getElementById('month-year');
+            
+            function renderCalendar() {
+                calendarGrid.innerHTML = '';
+                monthYearEl.textContent = calendarDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                const month = calendarDate.getMonth(), year = calendarDate.getFullYear();
+                const firstDayOfMonth = new Date(year, month, 1).getDay();
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                for (let i = 0; i < firstDayOfMonth; i++) calendarGrid.innerHTML += `<div></div>`;
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const dayEl = document.createElement('div');
+                    dayEl.textContent = day;
+                    dayEl.classList.add('calendar-day');
+                    const currentDate = new Date(year, month, day);
+                    const dateString = getDateString(currentDate);
+                    if (dateString === todayString) dayEl.classList.add('today');
+                    if (allRoutines[dateString]) dayEl.classList.add('has-routine');
+                    dayEl.addEventListener('click', () => openRoutineForm(currentDate));
+                    calendarGrid.appendChild(dayEl);
+                }
+            }
+            document.getElementById('prev-month').addEventListener('click', () => { calendarDate.setMonth(calendarDate.getMonth() - 1); renderCalendar(); });
+            document.getElementById('next-month').addEventListener('click', () => { calendarDate.setMonth(calendarDate.getMonth() + 1); renderCalendar(); });
+
+            const routineModal = document.getElementById('routine-modal');
+            const formDateEl = document.getElementById('form-date');
+            const subjectsContainer = document.getElementById('subjects-container');
+            const deleteRoutineBtn = document.getElementById('delete-routine-btn');
+            
+            function openRoutineForm(date) {
+                currentSelectedDate = date;
+                const dateString = getDateString(currentSelectedDate);
+                formDateEl.textContent = `Routine for ${date.toLocaleDateString('en-US', { dateStyle: 'full' })}`;
+                const existingRoutine = allRoutines[dateString];
+                subjectsContainer.innerHTML = '';
+                deleteRoutineBtn.classList.toggle('hidden', !existingRoutine);
+                document.getElementById('save-form-btn').textContent = existingRoutine ? 'Update Routine' : 'Save Routine';
+
+                if (existingRoutine && existingRoutine.subjects) {
+                    existingRoutine.subjects.forEach(s => addSubjectToForm(s.name, s.topics.map(t => t.text)));
+                } else {
+                    addSubjectToForm();
+                }
+                routineModal.classList.remove('hidden');
+            }
+
+            function closeRoutineForm() { routineModal.classList.add('hidden'); }
+            document.getElementById('cancel-form-btn').addEventListener('click', closeRoutineForm);
+
+            function addSubjectToForm(subjectName = 'Biology', topics = ['']) {
+                const subjectDiv = document.createElement('div');
+                subjectDiv.className = 'subject-entry mb-4 p-4 border rounded-lg relative';
+                subjectDiv.innerHTML = `
+                    <button type="button" class="absolute top-2 right-2 text-red-500 font-bold remove-subject-btn">X</button>
+                    <label class="block text-sm font-medium text-gray-700">Subject</label>
+                    <select class="mt-1 block w-full rounded-md border-gray-300 shadow-sm subject-name">
+                        <option ${subjectName === 'Biology' ? 'selected' : ''}>Biology</option>
+                        <option ${subjectName === 'Chemistry' ? 'selected' : ''}>Chemistry</option>
+                        <option ${subjectName === 'Physics' ? 'selected' : ''}>Physics</option>
+                    </select>
+                    <label class="mt-2 block text-sm font-medium text-gray-700">Topics (one per line)</label>
+                    <textarea class="mt-1 block w-full rounded-md border-gray-300 shadow-sm subject-topics" rows="3">${topics.join('\n')}</textarea>`;
+                subjectsContainer.appendChild(subjectDiv);
+            }
+            document.getElementById('add-subject-btn').addEventListener('click', () => addSubjectToForm());
+            subjectsContainer.addEventListener('click', e => {
+                if(e.target.classList.contains('remove-subject-btn')) e.target.closest('.subject-entry').remove();
+            });
+            
+            document.getElementById('routine-form').addEventListener('submit', e => {
+                e.preventDefault();
+                const dateString = getDateString(currentSelectedDate);
+                const newRoutine = { subjects: [] };
+                subjectsContainer.querySelectorAll('.subject-entry').forEach(div => {
+                    const name = div.querySelector('.subject-name').value;
+                    const topicsText = div.querySelector('.subject-topics').value.split('\n').filter(t => t.trim());
+                    if (name && topicsText.length > 0) {
+                        const topics = topicsText.map(text => ({ text: text, completed: false }));
+                        newRoutine.subjects.push({ name, topics });
+                    }
+                });
+
+                if (newRoutine.subjects.length > 0) {
+                    allRoutines[dateString] = newRoutine;
+                } else {
+                    delete allRoutines[dateString];
+                }
+                saveRoutinesToStorage();
+                renderTodaysRoutine();
+                renderCalendar();
+                closeRoutineForm();
+            });
+            
+            deleteRoutineBtn.addEventListener('click', () => {
+                const dateString = getDateString(currentSelectedDate);
+                delete allRoutines[dateString];
+                saveRoutinesToStorage();
+                renderTodaysRoutine();
+                renderCalendar();
+                closeRoutineForm();
+            });
+        });
+    </script>
+</body>
+</html>
+
