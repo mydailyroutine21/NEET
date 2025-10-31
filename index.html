@@ -20,6 +20,7 @@
             background-position: 0 0, 5% 10%, 95% 20%, 10% 80%, 90% 90%;
             background-size: auto, 30px, 40px, 40px, 30px;
             background-attachment: fixed;
+            overflow-x: hidden; /* Prevent horizontal scroll from animations */
         }
 
         .hidden { display: none !important; }
@@ -32,12 +33,19 @@
             z-index: 10000;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
             transition: opacity 0.5s ease-in-out;
+            pointer-events: none; /* Allow clicks through if hidden */
+            opacity: 0;
+        }
+        .fullscreen-overlay.visible {
+            opacity: 1;
+            pointer-events: auto;
         }
 
         /* Welcome Screen */
         .welcome-screen {
             background-color: #00BCD4;
             font-family: 'Caveat', cursive;
+            pointer-events: auto; /* Welcome screen is interactive */
         }
         .welcome-message { font-size: 5rem; color: white; animation: fadeIn 2s; }
         .greeting-message { font-size: 2.5rem; color: white; animation: fadeIn 2.5s; }
@@ -68,12 +76,84 @@
         
         /* Modal Scroll Fix */
         #subjects-container { max-height: 40vh; overflow-y: auto; padding-right: 1rem; }
+
+        /* --- Celebration Animations --- */
+        #celebration-overlay {
+            background: none;
+            backdrop-filter: none;
+            z-index: 20000;
+        }
+        
+        /* Celebration Popups */
+        .celebration-popup {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            text-align: center;
+            z-index: 20002;
+            position: absolute;
+            opacity: 0;
+            transform: scale(0.5);
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .celebration-popup.visible {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        /* Bubbles */
+        .bubble {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            bottom: -50px;
+            animation: rise 10s infinite ease-in;
+            z-index: 20001;
+        }
+        @keyframes rise {
+            0% { transform: translateY(0) translateX(0); opacity: 1; }
+            50% { transform: translateX(100px); }
+            100% { transform: translateY(-100vh) translateX(-100px); opacity: 0; }
+        }
+
+        /* Confetti */
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 20px;
+            top: -20px;
+            animation: fall 5s linear infinite;
+        }
+        @keyframes fall {
+            0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+
+        /* Static Celebration State */
+        .celebration-emoji {
+            display: none;
+            margin-left: 0.5rem;
+            animation: tada 1.5s ease infinite;
+        }
+        .celebration-active .celebration-emoji { display: inline-block; }
+        .celebration-active #status-bar { border: 2px solid #FFD700; background-color: #FFFBEB; }
+        @keyframes tada {
+            0% {transform: scale(1);} 10% {transform: scale(0.9) rotate(-3deg);}
+            20% {transform: scale(0.9) rotate(-3deg);} 30% {transform: scale(1.1) rotate(3deg);}
+            40% {transform: scale(1.1) rotate(-3deg);} 50% {transform: scale(1.1) rotate(3deg);}
+            60% {transform: scale(1.1) rotate(-3deg);} 70% {transform: scale(1.1) rotate(3deg);}
+            80% {transform: scale(0.9) rotate(-3deg);} 90% {transform: scale(0.9) rotate(3deg);}
+            100% {transform: scale(1) rotate(0);}
+        }
+
     </style>
 </head>
 <body class="bg-cyan-50">
 
     <!-- Password Overlay -->
-    <div id="password-overlay" class="fullscreen-overlay">
+    <div id="password-overlay" class="fullscreen-overlay visible" style="pointer-events: auto;">
         <div class="bg-white p-8 rounded-lg shadow-2xl text-center w-11/12 max-w-sm">
             <h2 class="text-2xl font-bold mb-4 text-cyan-800">Enter Password</h2>
             <p class="text-gray-600 mb-6">This site is private. Please enter the password to continue.</p>
@@ -84,11 +164,27 @@
             </form>
         </div>
     </div>
+    
+    <!-- Celebration Overlay -->
+    <div id="celebration-overlay" class="fullscreen-overlay">
+        <div id="bubble-container"></div>
+        <div id="confetti-container"></div>
+        <div id="congrats-popup" class="celebration-popup">
+            <h2 class="text-5xl font-bold text-cyan-600" style="font-family: 'Caveat', cursive;">Congratulations!</h2>
+        </div>
+        <div id="message-popup" class="celebration-popup">
+            <p class="text-xl text-gray-700 leading-relaxed">
+                Ayesha Ayesha !! Awesome go...keep it up, Proud of youu .<br>
+                Abhi aram se rest karo and i hope ur eyes aren't hurting...<br>
+                Take care go. Tu kamal hai !
+            </p>
+        </div>
+    </div>
 
     <!-- Main App Content (Initially Hidden) -->
     <div id="app-container" class="hidden">
          <!-- Welcome Animation -->
-        <div id="welcome-screen" class="fullscreen-overlay welcome-screen">
+        <div id="welcome-screen" class="fullscreen-overlay welcome-screen visible">
             <div class="welcome-message">Welcome Madam Jii</div>
             <div id="greeting" class="greeting-message"></div>
         </div>
@@ -100,14 +196,20 @@
             </nav>
 
             <section id="today-section">
-                <div class="text-center mb-8"><h1 class="text-4xl font-bold text-cyan-700" id="today-date"></h1></div>
+                <div class="text-center mb-8">
+                    <h1 class="text-4xl font-bold text-cyan-700 inline-flex items-center" id="today-date-header">
+                        <span id="today-date"></span>
+                        <span class="celebration-emoji">🎉</span>
+                    </h1>
+                </div>
                 <div id="routine-display"></div>
                 <div id="no-routine-message" class="text-center p-8 bg-white/80 backdrop-blur-md shadow-lg rounded-lg hidden">
                     <p class="text-xl text-gray-600 mb-4">Routine not yet decided.</p>
                     <button id="setup-routine-btn" class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-6 rounded-full transition duration-300">Set up routine</button>
                 </div>
-                <div id="status-bar" class="mt-8 p-4 bg-white/80 backdrop-blur-md shadow-lg rounded-lg text-center hidden">
+                <div id="status-bar" class="mt-8 p-4 bg-white/80 backdrop-blur-md shadow-lg rounded-lg text-center transition-all duration-300">
                     <span id="completed-tasks" class="font-semibold text-lg">Completed tasks: 0</span><span class="mx-4 text-gray-400">|</span><span id="remaining-tasks" class="font-semibold text-lg">Remaining tasks: 0</span>
+                    <div id="congrats-status-text" class="hidden text-xl font-bold text-yellow-600 mt-2" style="font-family: 'Caveat', cursive;">Congratulations! 🎉</div>
                 </div>
             </section>
 
@@ -150,18 +252,22 @@
             const passwordInput = document.getElementById('password-input');
             const passwordError = document.getElementById('password-error');
             const appContainer = document.getElementById('app-container');
+            const todaySection = document.getElementById('today-section');
+            const congratsStatusText = document.getElementById('congrats-status-text');
             
             // --- App State ---
             const VALID_PASSWORDS = ["21105", "3103"];
             let allRoutines = {};
             let currentSelectedDate = null;
             let calendarDate = new Date();
+            let celebrationHasPlayed = false;
 
             // --- Password Check ---
             passwordForm.addEventListener('submit', (e) => {
                 e.preventDefault();
                 if (VALID_PASSWORDS.includes(passwordInput.value)) {
-                    passwordOverlay.classList.add('hidden');
+                    passwordOverlay.classList.remove('visible');
+                    setTimeout(() => passwordOverlay.classList.add('hidden'), 500);
                     appContainer.classList.remove('hidden');
                     startApp();
                 } else {
@@ -212,7 +318,7 @@
                 }
                 
                 setTimeout(() => {
-                    welcomeScreen.style.opacity = '0';
+                    welcomeScreen.classList.remove('visible');
                     mainContent.style.opacity = '1';
                     setTimeout(() => { welcomeScreen.classList.add('hidden'); }, 1000);
                 }, 3000);
@@ -234,14 +340,9 @@
                             ]}
                         ]
                     },
-                    '10-20': {
+                    '10-18': {
                         subjects: [
-                            { name: 'Biology', topics: [{text: 'Breathing (Notes)', completed: false}] },
-                            { name: 'Chemistry', topics: [{text: 'Ionic (Revision)', completed: false}] },
-                            { name: 'Physics', topics: [
-                                {text: 'Atoms (Notes)', completed: false}, 
-                                {text: 'Atoms (Questions)', completed: false}
-                            ]}
+                            { name: 'Biology', topics: [{text: 'Animal Kingdom', completed: false}] }
                         ]
                     }
                 };
@@ -288,7 +389,9 @@
                     noRoutineMessage.classList.add('hidden');
                     routineDisplay.innerHTML = routine.subjects.map((subject, subjectIndex) => `
                         <div class="mb-8 bg-white/80 backdrop-blur-md shadow-lg rounded-lg overflow-hidden">
-                            <h2 class="text-2xl font-bold p-4 bg-cyan-100 text-cyan-800">${subject.name}</h2>
+                            <h2 class="text-2xl font-bold p-4 bg-cyan-100 text-cyan-800 flex items-center">
+                                ${subject.name} <span class="celebration-emoji">🎉</span>
+                            </h2>
                             <table class="w-full">
                                 <thead class="bg-cyan-50"><tr><th class="p-3 text-left">Topic</th><th class="p-3 w-24 text-center">Completed</th></tr></thead>
                                 <tbody>${subject.topics.map((topic, topicIndex) => `
@@ -347,6 +450,21 @@
                 statusBar.classList.toggle('hidden', totalTasks === 0);
                 document.getElementById('completed-tasks').textContent = `Completed tasks: ${completedTasks}`;
                 document.getElementById('remaining-tasks').textContent = `Remaining tasks: ${totalTasks - completedTasks}`;
+                
+                const allDone = totalTasks > 0 && totalTasks === completedTasks;
+                
+                if (allDone) {
+                    todaySection.classList.add('celebration-active');
+                    congratsStatusText.classList.remove('hidden');
+                    if (!celebrationHasPlayed) {
+                        playCelebrationAnimation();
+                        celebrationHasPlayed = true;
+                    }
+                } else {
+                    todaySection.classList.remove('celebration-active');
+                    congratsStatusText.classList.add('hidden');
+                    celebrationHasPlayed = false; // Reset for next time
+                }
             }
             
             document.getElementById('setup-routine-btn').addEventListener('click', () => { showSection('calendar'); openRoutineForm(new Date()); });
@@ -424,6 +542,8 @@
             document.getElementById('routine-form').addEventListener('submit', e => {
                 e.preventDefault();
                 const dateString = getDateString(currentSelectedDate);
+                // When saving a *new* routine, get existing checked state if any.
+                // This is complex. Better approach: when creating a routine, all topics are new and unchecked.
                 const newRoutine = { subjects: [] };
                 subjectsContainer.querySelectorAll('.subject-entry').forEach(div => {
                     const name = div.querySelector('.subject-name').value;
@@ -453,6 +573,64 @@
                 renderCalendar();
                 closeRoutineForm();
             });
+
+            // --- Celebration Animation Functions ---
+            const celebrationOverlay = document.getElementById('celebration-overlay');
+            const congratsPopup = document.getElementById('congrats-popup');
+            const messagePopup = document.getElementById('message-popup');
+
+            function playCelebrationAnimation() {
+                celebrationOverlay.classList.add('visible');
+                createConfetti();
+                createBubbles();
+
+                setTimeout(() => {
+                    congratsPopup.classList.add('visible');
+                }, 500); // "Congratulations" pops up first
+
+                setTimeout(() => {
+                    congratsPopup.classList.remove('visible');
+                }, 3500); // "Congratulations" fades out
+
+                setTimeout(() => {
+                    messagePopup.classList.add('visible');
+                }, 4000); // Personal message pops up
+
+                setTimeout(() => {
+                    messagePopup.classList.remove('visible');
+                    celebrationOverlay.classList.remove('visible');
+                }, 10000); // Everything fades out after 10 seconds total
+            }
+
+            function createBubbles() {
+                const container = document.getElementById('bubble-container');
+                container.innerHTML = '';
+                for (let i = 0; i < 30; i++) {
+                    const bubble = document.createElement('div');
+                    bubble.className = 'bubble';
+                    const size = Math.random() * 40 + 10 + 'px';
+                    bubble.style.width = size;
+                    bubble.style.height = size;
+                    bubble.style.left = Math.random() * 100 + '%';
+                    bubble.style.animationDelay = Math.random() * 10 + 's';
+                    bubble.style.animationDuration = Math.random() * 5 + 5 + 's';
+                    container.appendChild(bubble);
+                }
+            }
+
+            function createConfetti() {
+                const container = document.getElementById('confetti-container');
+                container.innerHTML = '';
+                const colors = ['#FFD700', '#FF4500', '#00CED1', '#ADFF2F', '#FF69B4'];
+                for (let i = 0; i < 100; i++) {
+                    const confetti = document.createElement('div');
+                    confetti.className = 'confetti';
+                    confetti.style.left = Math.random() * 100 + 'vw';
+                    confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                    confetti.style.animationDelay = Math.random() * 5 + 's';
+                    container.appendChild(confetti);
+                }
+            }
         });
     </script>
 </body>
